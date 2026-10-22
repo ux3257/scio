@@ -72,9 +72,12 @@ Die Fragen stehen in der Datei `fragen.js`. Jede Frage ist eine Zeile:
 
 Regeln für SF-Fragen:
 
-- **Kindgerecht** und lehrreich, aus möglichst verschiedenen Kategorien.
+- **Kindgerecht:** Ein 10-jähriges Kind versteht Frage und Tipps ohne Erklärung. Die Fragen sind lehrreich und stammen aus möglichst verschiedenen Kategorien.
+- **Wissbar:** Mal der eine, mal die andere am Tisch kann die Antwort auch wirklich kennen.
 - **Exakte Antworten:** eine Zahl oder Jahreszahl, nie „ca.“.
+- **Tipps helfen beim Einschätzen:** Jeder Tipp grenzt die Antwort ein, zum Beispiel mit „mehr als 50“, „eine gerade Zahl“ oder „in den 1960er Jahren“. So merkt man, ob die eigene Antwort gut liegt.
 - **Tipps nicht ausrechenbar:** Ein Tipp darf sich auf etwas anderes beziehen, aber dessen Zahl nicht mitliefern. „10 Jahre vor der Mondlandung“ ist erlaubt, „10 Jahre vor der Mondlandung (1969)“ nicht.
+- **Keine Duell-Fragen:** Fragen aus den Duellen kommen nicht in den SF-Pool.
 
 Wie viele Fragen ein Spiel hat, legt `const ROUNDS = 10;` in der `index.html` fest.
 
