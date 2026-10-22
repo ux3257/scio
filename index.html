@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SCIO</title>
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#04151f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SCIO">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Figtree:wght@400;600;800&display=swap">
+<style>
+/* Layout: one-screen table app with two modes. Fokus = only the newest info, sized to fill the screen. Tisch = two mirrored cards, controls in the middle. Single deliberate dark look from the user's palette. */
+:root {
+  --night: #04151f;
+  --felt: #183a37;
+  --sand: #efd6ac;
+  --ember: #c44900;
+  --plum: #432534;
+  --sand-dim: rgba(239, 214, 172, .62);
+  --sand-faint: rgba(239, 214, 172, .14);
+  --night-dim: rgba(4, 21, 31, .6);
+  --display: "Cinzel", "Trajan Pro", Georgia, serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+html { height: 100%; box-sizing: border-box; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); background: var(--night); -webkit-text-size-adjust: 100%; }
+*, *::before, *::after { box-sizing: inherit; }
+body {
+  height: 100%;
+  margin: 0;
+  -webkit-tap-highlight-color: transparent;
+  background: var(--night);
+  color: var(--sand);
+  font-family: var(--body);
+  overflow: hidden;
+}
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-block: 10px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* Header */
+.head { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+.mark { font-family: var(--display); font-weight: 800; font-size: 1.35rem; letter-spacing: .28em; color: var(--sand); }
+.mark span { color: var(--ember); }
+.count { font-size: .85rem; font-weight: 600; color: var(--sand-dim); font-variant-numeric: tabular-nums; margin-right: auto; }
+.icon {
+  min-height: 40px; min-width: 40px; padding: 0;
+  font-size: 1.1rem !important;
+  border-radius: 999px; border: 1px solid var(--sand-faint);
+  background: transparent; color: var(--sand);
+  font: 600 .85rem var(--body); cursor: pointer;
+}
+
+/* Mode switch */
+.seg { display: flex; border: 1px solid var(--sand-faint); border-radius: 999px; padding: 3px; }
+.seg button {
+  border: 0; background: transparent; color: var(--sand-dim);
+  font: 700 .8rem var(--body); padding: 0 12px; min-height: 32px; border-radius: 999px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--sand); color: var(--night); }
+
+/* ---------- FOKUS ---------- */
+.focus { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+.app[data-mode="table"] .focus { display: none; }
+.steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; }
+.step {
+  font: 700 .62rem var(--body); letter-spacing: .04em; text-transform: uppercase;
+  text-align: center; padding: 7px 0; white-space: nowrap; overflow: hidden; border-radius: 8px;
+  background: var(--sand-faint); color: var(--sand-dim);
+}
+.step.done { background: var(--plum); color: var(--sand); }
+.step.now { background: var(--ember); color: var(--sand); }
+.context { display: flex; flex-direction: column; gap: 6px; }
+.context:empty { display: none; }
+.ctx-q { font-weight: 600; font-size: 1rem; line-height: 1.3; color: var(--sand-dim); }
+.ctx-tip { display: grid; grid-template-columns: auto 1fr; gap: 8px; font-size: .95rem; line-height: 1.3; color: var(--sand-dim); }
+.ctx-tip b { font-family: var(--display); color: var(--ember); font-size: .8rem; padding-top: 2px; }
+.stage {
+  flex: 1 1 auto; min-height: 0;
+  background: var(--felt);
+  border-radius: 22px;
+  padding: 20px 20px 18px;
+  display: flex; flex-direction: column; gap: 10px;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(239,214,172,.08);
+}
+.stage-label { font-family: var(--display); font-weight: 800; font-size: .9rem; letter-spacing: .2em; color: var(--ember); }
+.cat { font-size: .75rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--sand-dim); }
+.stage-top { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.hero { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; align-items: center; }
+.hero-text { font-weight: 800; line-height: 1.12; text-wrap: balance; overflow-wrap: anywhere; }
+.stage.answer { background: var(--plum); }
+.stage.showdown { background: var(--ember); }
+.stage.showdown .stage-label { color: var(--sand); }
+.stage.answer .hero-text { color: var(--sand); font-variant-numeric: tabular-nums; line-height: 1; }
+.hero-extra { font-size: 1rem; line-height: 1.35; color: var(--sand-dim); }
+.hero-extra:empty { display: none; }
+.phase { font-size: .9rem; font-weight: 600; color: var(--sand-dim); text-align: center; }
+
+/* ---------- TISCH ---------- */
+.half { flex: 1 1 0; min-height: 0; display: none; }
+.app[data-mode="table"] .half { display: flex; }
+.half.flip { transform: rotate(180deg); order: 1; }
+.half.near { order: 3; }
+.focus { order: 1; }
+.bar { order: 2; }
+.card {
+  flex: 1; min-width: 0;
+  background: var(--sand); color: var(--night);
+  border-radius: 18px; padding: 16px 18px;
+  overflow-y: auto;
+  display: flex; flex-direction: column; gap: 11px;
+  box-shadow: inset 0 0 0 6px var(--sand), inset 0 0 0 7px rgba(4,21,31,.18);
+}
+.c-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.c-round { font-family: var(--display); font-weight: 800; font-size: .8rem; letter-spacing: .14em; color: var(--ember); }
+.pips { display: flex; gap: 5px; }
+.pip { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--night-dim); opacity: .35; }
+.pip.on { background: var(--ember); border-color: var(--ember); opacity: 1; }
+.c-phase { font-size: .82rem; font-weight: 600; color: var(--night-dim); }
+.c-q { font-weight: 800; font-size: clamp(1.1rem, 5vw, 1.6rem); line-height: 1.18; margin: 0; text-wrap: balance; }
+.c-tips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.c-tip { display: grid; grid-template-columns: auto 1fr; gap: 10px; font-size: 1rem; line-height: 1.32; }
+.c-tip .chip {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--plum); color: var(--sand); font: 800 .72rem var(--body);
+  border: 2px dashed rgba(239,214,172,.6);
+}
+.c-tip.wait { color: var(--night-dim); font-style: italic; }
+.c-tip.wait .chip { background: transparent; color: var(--night-dim); border-color: var(--night-dim); }
+.c-ans { margin-top: auto; border-top: 2px dashed rgba(4,21,31,.2); padding-top: 9px; display: flex; flex-direction: column; gap: 2px; }
+.c-ans .l { font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--night-dim); }
+.c-ans .v { font-weight: 800; font-size: clamp(1.6rem, 8vw, 2.4rem); color: var(--ember); line-height: 1.05; font-variant-numeric: tabular-nums; }
+.c-ans .x { font-size: .88rem; color: var(--night-dim); }
+
+/* ---------- Controls ---------- */
+.bar { display: flex; gap: 8px; flex: 0 0 auto; }
+.ghost {
+  min-height: 56px; min-width: 56px; border-radius: 999px;
+  border: 1px solid var(--sand-faint); background: transparent; color: var(--sand);
+  font: 800 1.3rem var(--body); cursor: pointer;
+}
+.ghost:disabled { opacity: .3; cursor: default; }
+.go {
+  flex: 1; min-height: 56px; border-radius: 999px; border: 0; cursor: pointer;
+  background: var(--sand); color: var(--night);
+  font: 800 1.05rem var(--body); letter-spacing: .02em;
+  box-shadow: 0 4px 0 rgba(239,214,172,.35);
+}
+.go.reveal { background: var(--ember); color: var(--sand); box-shadow: 0 4px 0 #7a2e00; }
+.go:active { transform: translateY(2px); box-shadow: none; }
+button:focus-visible { outline: 3px solid var(--ember); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: no-preference) {
+  .fresh { animation: rise .32s ease-out; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+}
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app" data-mode="focus">
+  <header class="head">
+    <div class="mark">SCI<span>O</span></div>
+    <div class="count" id="count">1 / 5</div>
+    <button class="icon" id="skip" type="button" title="Andere Frage ziehen" aria-label="Andere Frage ziehen">↻</button>
+    <div class="seg" role="group" aria-label="Ansicht">
+      <button type="button" id="mFocus" aria-pressed="true">Fokus</button>
+      <button type="button" id="mTable" aria-pressed="false">Tisch</button>
+    </div>
+  </header>
+
+  <main class="focus" id="focus" aria-live="polite">
+    <div class="steps" id="steps"></div>
+    <div class="context" id="context"></div>
+    <section class="stage" id="stage">
+      <div class="stage-top"><span class="stage-label" id="stageLabel">FRAGE</span><span class="cat" id="cat"></span></div>
+      <div class="hero" id="hero"><div class="hero-text" id="heroText"></div></div>
+      <div class="hero-extra" id="heroExtra"></div>
+    </section>
+    <div class="phase" id="phase"></div>
+  </main>
+
+  <div class="half flip"><div class="card" id="cardTop" aria-hidden="true"></div></div>
+  <div class="bar">
+    <button class="ghost" id="back" type="button" aria-label="Einen Schritt zurück">‹</button>
+    <button class="go" id="next" type="button">Tipp 1 zeigen</button>
+  </div>
+  <div class="half near"><div class="card" id="cardBottom"></div></div>
+</div>
+
+<script>
+// [Kategorie, Frage, Tipp 1, Tipp 2, Antwort, Zusatz]
+const Q = [
+  ["Mensch", "Wie viele Knochen hat ein erwachsener Mensch?", "Allein in beiden Händen stecken zusammen 54 Knochen.", "Die Zahl liegt zwischen 200 und 220.", "206", ""],
+  ["Geschichte", "In welchem Jahr fiel die Berliner Mauer?", "Gebaut wurde sie 1961.", "Sie stand etwas mehr als 28 Jahre.", "1989", "am 9. November"],
+  ["Welt", "Wie viele Länder grenzen an Deutschland?", "Im Norden gibt es nur ein einziges Nachbarland.", "Allein im Westen sind es vier.", "9", "Dänemark, Polen, Tschechien, Österreich, Schweiz, Frankreich, Luxemburg, Belgien, Niederlande"],
+  ["Tiere", "Wie viele Monate ist eine Elefantenkuh schwanger?", "So lange wie bei keinem anderen Landtier.", "Es ist fast zwei Jahre.", "ca. 22", "Monate"],
+  ["Weltall", "Wie viele Minuten braucht das Licht von der Sonne bis zur Erde?", "Licht legt pro Sekunde etwa 300.000 km zurück.", "Es dauert weniger als eine Viertelstunde.", "ca. 8", "Minuten, genauer gut 8 Minuten 20 Sekunden"],
+  ["Mensch", "Wie viele Zähne hat ein Erwachsener (mit Weisheitszähnen)?", "Kinder haben 20 Milchzähne.", "Es sind mehr als 30.", "32", ""],
+  ["Mensch", "Wie viele Liter Blut hat ein erwachsener Mensch?", "Das Blut macht etwa 7–8 % des Körpergewichts aus.", "Es ist deutlich weniger als ein 10-Liter-Eimer.", "ca. 5–6", "Liter"],
+  ["Mensch", "Wie viele Haare hat ein Mensch auf dem Kopf?", "Jeden Tag fallen 50 bis 100 Haare aus.", "Die Zahl ist sechsstellig.", "ca. 100.000", ""],
+  ["Mensch", "Wie oft schlägt ein Herz an einem Tag?", "In Ruhe schlägt es etwa 70-mal pro Minute.", "Ein Tag hat 1.440 Minuten.", "ca. 100.000", "Schläge"],
+  ["Mensch", "Wie alt wurde der älteste Mensch, dessen Alter belegt ist?", "Es war eine Frau aus Frankreich.", "Sie wurde über 120.", "122", "Jahre (Jeanne Calment)"],
+  ["Tiere", "Wie viele Herzen hat ein Oktopus?", "Sein Blut ist blau.", "Mehr als eins, weniger als fünf.", "3", ""],
+  ["Tiere", "Wie viele Beine hat der Tausendfüßer mit den meisten Beinen?", "Die meisten Arten haben weit weniger als 1.000.", "Der Rekordhalter hat tatsächlich mehr als 1.000.", "1.306", "entdeckt in Australien"],
+  ["Tiere", "Wie lang kann ein Blauwal werden (in Metern)?", "Ein Schulbus ist etwa 12 m lang.", "Mehr als zwei Schulbusse hintereinander.", "ca. 30", "Meter"],
+  ["Tiere", "Wie viele Halswirbel hat eine Giraffe?", "Menschen haben genauso viele.", "Es sind weniger als 10.", "7", ""],
+  ["Tiere", "Wie viele Augen hat eine Honigbiene?", "Mehr als zwei.", "Drei davon sitzen oben auf dem Kopf.", "5", ""],
+  ["Tiere", "Wie viele Eier legt ein Legehuhn ungefähr im Jahr?", "Fast jeden Tag eins.", "Es sind weniger als 365.", "ca. 300", ""],
+  ["Tiere", "Wie schnell fliegt ein Wanderfalke im Sturzflug (km/h)?", "Kein Tier der Welt ist schneller.", "Mehr als 300 km/h.", "ca. 320", "km/h"],
+  ["Tiere", "Wie viel Gramm wiegt die kleinste Vogelart, die Bienenelfe?", "Sie ist ein Kolibri.", "Sie ist leichter als eine 1-Cent-Münze (2,3 g).", "ca. 2", "Gramm"],
+  ["Pflanzen", "Wie alt ist der älteste bekannte Baum der Welt?", "Er ist eine Kiefer in Kalifornien.", "Er keimte schon vor dem Bau der Pyramiden von Gizeh (vor ca. 4.500 Jahren).", "ca. 4.800", "Jahre"],
+  ["Erde", "Wie hoch ist die Zugspitze (in Metern)?", "Der Mont Blanc ist mit rund 4.800 m deutlich höher.", "Knapp unter 3.000 m.", "2.962", "Meter"],
+  ["Erde", "Wie lang ist der Rhein (in km)?", "Mehr als 1.000 km.", "Die Donau ist mit ca. 2.850 km mehr als doppelt so lang.", "ca. 1.230", "km"],
+  ["Erde", "Bei wie viel Grad kocht Wasser auf der Zugspitze?", "Auf Meereshöhe sind es 100 °C.", "Mit je 300 Höhenmetern sinkt der Siedepunkt um etwa 1 Grad.", "ca. 90", "°C"],
+  ["Erde", "Wie viele Kilometer misst der Erdumfang am Äquator?", "Ein Flugzeug mit 900 km/h bräuchte etwa zwei Tage für eine Runde.", "Der Meter war früher als zehnmillionster Teil der Strecke vom Nordpol zum Äquator festgelegt.", "ca. 40.000", "km"],
+  ["Erde", "Wie tief ist die tiefste Stelle im Meer (in Metern)?", "Der Mount Everest (8.849 m) würde komplett darin verschwinden.", "Tiefer als 10.000 m.", "ca. 11.000", "Meter (Marianengraben)"],
+  ["Erde", "Wie viel Prozent der Erdoberfläche sind mit Wasser bedeckt?", "Mehr als die Hälfte.", "Zwischen zwei Dritteln und drei Vierteln.", "ca. 71", "Prozent"],
+  ["Erde", "Wie viel Prozent des Wassers auf der Erde ist Süßwasser?", "Der allergrößte Teil ist Salzwasser.", "Weniger als 5 %.", "ca. 3", "Prozent"],
+  ["Erde", "Bei wie viel Grad gefriert Meerwasser?", "Süßwasser gefriert bei 0 °C.", "Salz senkt den Gefrierpunkt, aber nur um wenige Grad.", "ca. −2", "°C"],
+  ["Erde", "Wie schnell dreht sich die Erde am Äquator (km/h)?", "Der Erdumfang ist etwa 40.000 km.", "Für eine Umdrehung braucht sie 24 Stunden.", "ca. 1.670", "km/h"],
+  ["Weltall", "Wie viele Planeten hat unser Sonnensystem?", "Pluto zählt seit 2006 nicht mehr dazu.", "Vier davon sind Gesteinsplaneten.", "8", ""],
+  ["Weltall", "Wie viele Tage liegen zwischen zwei Vollmonden?", "Das Wort „Monat“ kommt von „Mond“.", "Etwas weniger als 30 Tage.", "ca. 29,5", "Tage"],
+  ["Weltall", "Wie weit ist der Mond von der Erde entfernt (in km)?", "Licht braucht dafür gut eine Sekunde.", "Weniger als 500.000 km.", "ca. 384.000", "km"],
+  ["Weltall", "Wie heiß ist die Oberfläche der Sonne (°C)?", "Eisen schmilzt bei etwa 1.500 °C.", "Mehr als 5.000 °C.", "ca. 5.500", "°C"],
+  ["Weltall", "Wie alt ist die Erde (in Milliarden Jahren)?", "Das Universum ist etwa 13,8 Milliarden Jahre alt.", "Die Erde ist etwa ein Drittel so alt.", "ca. 4,6", "Milliarden Jahre"],
+  ["Weltall", "Wie viele Minuten braucht die Raumstation ISS für eine Erdumrundung?", "Weniger als zwei Stunden.", "Die Astronauten sehen etwa 16 Sonnenaufgänge am Tag.", "ca. 90", "Minuten"],
+  ["Weltall", "Wie weit ist die Sonne von der Erde entfernt (in Mio. km)?", "Mehr als 100 Millionen km.", "Ein Flugzeug bräuchte etwa 19 Jahre bis dorthin.", "ca. 150", "Millionen km"],
+  ["Geschichte", "In welchem Jahr landeten Menschen zum ersten Mal auf dem Mond?", "Der erste Mensch im All war Juri Gagarin, 1961.", "Die Landung war im selben Jahrzehnt.", "1969", ""],
+  ["Geschichte", "In welchem Jahr erreichte Kolumbus Amerika?", "Ende des 15. Jahrhunderts.", "Die Quersumme der Jahreszahl ist 16.", "1492", ""],
+  ["Geschichte", "Wie alt wurde Wolfgang Amadeus Mozart?", "Er komponierte schon mit 5 Jahren.", "Er wurde keine 40.", "35", "Jahre"],
+  ["Geschichte", "Wie viele Jahre dauerte der Hundertjährige Krieg?", "Nicht genau 100.", "Mehr als 100.", "116", "Jahre (1337–1453)"],
+  ["Geschichte", "In welchem Jahr wurde der Eiffelturm fertig?", "Genau 100 Jahre nach Beginn der Französischen Revolution.", "Die Revolution begann 1789.", "1889", ""],
+  ["Geschichte", "Um welches Jahr erfand Gutenberg den Buchdruck mit beweglichen Buchstaben?", "Im 15. Jahrhundert.", "Etwa 40 Jahre bevor Kolumbus nach Amerika segelte.", "ca. 1450", ""],
+  ["Geschichte", "In welchem Jahr wurde das Kolosseum in Rom eröffnet?", "Zur Zeit des Römischen Reiches, nach Christi Geburt.", "Die Jahreszahl ist zweistellig.", "80", "n. Chr."],
+  ["Welt", "Wie viele Menschen leben in Deutschland?", "Frankreich hat rund 68 Millionen Einwohner.", "Deutschland ist das Land mit den meisten Einwohnern in der EU.", "rund 83,5", "Millionen"],
+  ["Welt", "Wie viele Bundesländer hat Deutschland?", "Drei davon sind Stadtstaaten.", "Mehr als 10.", "16", ""],
+  ["Welt", "Wie viele Länder sind Mitglied der Vereinten Nationen?", "Allein Afrika hat 54 Länder.", "Weniger als 200.", "193", ""],
+  ["Welt", "Wie viele Sprachen werden ungefähr auf der Welt gesprochen?", "Allein in Papua-Neuguinea sind es über 800.", "Mehr als 5.000.", "ca. 7.000", ""],
+  ["Alltag", "Wie viele Tasten hat ein Klavier?", "Mehr als 80.", "52 davon sind weiß.", "88", ""],
+  ["Alltag", "Wie lang ist ein Marathon (in km)?", "Mehr als 40 km.", "Ein Halbmarathon ist gut 21 km lang.", "42,195", "km"],
+  ["Alltag", "Wie viele Felder hat ein Schachbrett?", "Es ist quadratisch.", "Alle Figuren zusammen belegen beim Start genau die Hälfte der Felder.", "64", ""],
+  ["Alltag", "Wie viel Gramm wiegt eine 1-Euro-Münze?", "Weniger als 10 g.", "Eine 2-Euro-Münze wiegt 8,5 g.", "7,5", "Gramm"],
+  ["Alltag", "Wie viele Liter Wasser verbraucht eine Person in Deutschland pro Tag im Haushalt?", "Eine volle Badewanne fasst etwa 150 Liter.", "Es ist etwas weniger als eine Badewanne.", "ca. 125", "Liter"],
+  ["Alltag", "Wie viel Gramm Zucker steckt in einem Liter Cola?", "Ein Stück Würfelzucker wiegt etwa 3 g.", "Es sind mehr als 30 Würfelzucker.", "ca. 106", "Gramm (ca. 35 Stück Würfelzucker)"],
+  ["Alltag", "Aus wie vielen Flächen besteht ein klassischer Fußball?", "Fünfecke und Sechsecke.", "12 davon sind schwarze Fünfecke.", "32", ""],
+  ["Welt", "Wie viele Sterne hat die Flagge der EU?", "Die Zahl hat nichts mit der Zahl der Mitgliedsländer zu tun.", "Es sind so viele wie Monate im Jahr.", "12", ""],
+  ["Welt", "Wie viele Streifen hat die Flagge der USA?", "Sie stehen für die Gründungskolonien.", "Es gibt einen roten Streifen mehr als weiße.", "13", ""]
+];
+const ROUNDS = 5;
+const PHASES = [
+  "Antwort geheim aufschreiben · 1. Setzrunde",
+  "2. Setzrunde · mitgehen, erhöhen oder aussteigen",
+  "3. Setzrunde",
+  "4. Setzrunde · die Zettel bleiben noch verdeckt",
+  "Alle Zettel aufdecken · wer am nächsten liegt, gewinnt den Pot"
+];
+const LABELS = ["Frage", "Tipp 1", "Tipp 2", "Lösung", "Showdown"];
+const LAST = 4;
+
+let st = { order: [], pos: 0, s: 0, mode: "focus", used: [] };
+try { const saved = JSON.parse(localStorage.getItem("scio") || "null"); if (saved && Array.isArray(saved.order)) st = Object.assign(st, saved); } catch (e) {}
+
+const $ = id => document.getElementById(id);
+const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function draw(n, exclude) {
+  let pool = Q.map((_, i) => i).filter(i => !st.used.includes(i) && !exclude.includes(i));
+  if (pool.length < n) { st.used = []; pool = Q.map((_, i) => i).filter(i => !exclude.includes(i)); }
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const picked = pool.slice(0, n);
+  st.used.push(...picked);
+  return picked;
+}
+function newGame() { st.order = draw(ROUNDS, []); st.pos = 0; st.s = 0; }
+function skip() { st.order[st.pos] = draw(1, st.order)[0]; st.s = 0; }
+if (!st.order.length || st.order.some(i => !Q[i])) newGame();
+
+function cardHTML(q) {
+  const [cat, text, t1, t2, a, x] = q;
+  const pips = [0,1,2,3,4].map(k => `<span class="pip${k <= st.s ? " on" : ""}"></span>`).join("");
+  const tips = [t1, t2].map((t, k) => st.s > k
+    ? `<li class="c-tip"><span class="chip">${k+1}</span><span>${esc(t)}</span></li>`
+    : `<li class="c-tip wait"><span class="chip">${k+1}</span><span>Tipp ${k+1} folgt nach der Setzrunde</span></li>`).join("");
+  const ans = st.s >= 3 ? `<div class="c-ans"><span class="l">Lösung</span><span class="v">${esc(a)}</span>${x ? `<span class="x">${esc(x)}</span>` : ""}</div>` : "";
+  return `<div class="c-top"><span class="c-round">SCIO · ${st.pos + 1}/${ROUNDS}</span><span class="pips">${pips}</span></div>
+    <div class="c-phase">${PHASES[st.s]}</div><h2 class="c-q">${esc(text)}</h2><ul class="c-tips">${tips}</ul>${ans}`;
+}
+
+function fit() {
+  const box = $("hero"), el = $("heroText");
+  if (st.mode !== "focus" || !box.clientHeight) return;
+  let lo = 18, hi = st.s >= 3 ? 140 : 72;
+  while (hi - lo > 1) {
+    const mid = (lo + hi) >> 1;
+    el.style.fontSize = mid + "px";
+    if (el.scrollHeight <= box.clientHeight && el.scrollWidth <= box.clientWidth) lo = mid; else hi = mid;
+  }
+  el.style.fontSize = lo + "px";
+}
+
+function render(animate) {
+  const q = Q[st.order[st.pos]];
+  const [cat, text, t1, t2, a, x] = q;
+  const app = $("app");
+  app.dataset.mode = st.mode;
+  $("mFocus").setAttribute("aria-pressed", st.mode === "focus");
+  $("mTable").setAttribute("aria-pressed", st.mode === "table");
+  $("count").textContent = `${st.pos + 1} / ${ROUNDS}`;
+
+  // Fokus
+  $("steps").innerHTML = LABELS.map((l, k) => `<span class="step${k < st.s ? " done" : k === st.s ? " now" : ""}">${l}</span>`).join("");
+  let ctx = "";
+  if (st.s > 0) ctx += `<div class="ctx-q">${esc(text)}</div>`;
+  if (st.s === 2) ctx += `<div class="ctx-tip"><b>1</b><span>${esc(t1)}</span></div>`;
+  if (st.s >= 3) ctx += `<div class="ctx-tip"><b>1</b><span>${esc(t1)}</span></div><div class="ctx-tip"><b>2</b><span>${esc(t2)}</span></div>`;
+  $("context").innerHTML = ctx;
+  $("stageLabel").textContent = LABELS[st.s].toUpperCase();
+  $("cat").textContent = cat;
+  $("heroText").textContent = [text, t1, t2, a, a][st.s];
+  $("heroExtra").textContent = st.s >= 3 ? x : "";
+  $("stage").classList.toggle("answer", st.s === 3);
+  $("stage").classList.toggle("showdown", st.s === 4);
+  $("phase").textContent = PHASES[st.s];
+
+  // Tisch
+  const html = cardHTML(q);
+  $("cardTop").innerHTML = html; $("cardBottom").innerHTML = html;
+
+  // Controls
+  const last = st.pos === ROUNDS - 1;
+  const btn = $("next");
+  btn.textContent = ["Tipp 1 zeigen", "Tipp 2 zeigen", "Lösung aufdecken", "Zum Showdown", last ? "Neues Spiel" : "Nächste Frage"][st.s];
+  btn.classList.toggle("reveal", st.s === 2);
+  $("back").disabled = st.pos === 0 && st.s === 0;
+
+  if (animate) for (const el of [$("stage"), $("cardTop"), $("cardBottom")]) { el.classList.remove("fresh"); void el.offsetWidth; el.classList.add("fresh"); }
+  requestAnimationFrame(fit);
+  try { localStorage.setItem("scio", JSON.stringify(st)); } catch (e) {}
+}
+
+$("next").addEventListener("click", () => {
+  wake();
+  if (st.s < LAST) st.s++;
+  else if (st.pos < ROUNDS - 1) { st.pos++; st.s = 0; }
+  else newGame();
+  render(true);
+});
+$("back").addEventListener("click", () => {
+  if (st.s > 0) st.s--;
+  else if (st.pos > 0) { st.pos--; st.s = LAST; }
+  render(false);
+});
+$("skip").addEventListener("click", () => { skip(); render(true); });
+$("mFocus").addEventListener("click", () => { st.mode = "focus"; render(false); });
+$("mTable").addEventListener("click", () => { st.mode = "table"; render(false); });
+window.addEventListener("resize", () => requestAnimationFrame(fit));
+if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => requestAnimationFrame(fit));
+
+let lock = null;
+async function wake() {
+  try { if (!lock && navigator.wakeLock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => { lock = null; }); } } catch (e) {}
+}
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") wake(); });
+
+render(false);
+wake();
+</script>
+
+</body>
+</html>
